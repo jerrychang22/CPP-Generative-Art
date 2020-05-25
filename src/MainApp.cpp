@@ -1,71 +1,94 @@
 #include "cinder/app/App.h"
 #include "cinder/app/RendererGl.h"
 #include "cinder/gl/gl.h"
+#include "cinder/gl/Fbo.h"
+#include "cinder/Rand.h"
 #include <glm/glm.hpp>
+#include <time.h>
+
+#include "Blob.h"
 
 using namespace ci;
 using namespace ci::app;
 using namespace glm;
+using namespace std;
 
-typedef struct circle {
-    vec2 pos;
-    float r;
-} circle;
 
+//Main, add sub-apps
 class MainApp : public App {
     public :
         void setup() override;
+        void update() override;
         void draw() override;
-        void addCircle(float x, float y, float r);
     private :
-        std::vector<vec2> linePoints;
-        std::vector<circle> circles;
+        void render_to_FBO();
+        
+        gl::FboRef      mFbo;
+        vector<Blob>    triangles;
 };
 
+//No additional settins yet
+//Define window size in future
 void prepareSettings(MainApp::Settings* settings){
    // settings->setMultiTouchEnabled(false);
 }
 
+//Future
+//Cin << user input for 
+//1) choosing art
+//2) user parameters
 void MainApp::setup(){
-    int x_spacing = 75;
-    int num_x = getWindowWidth() % x_spacing;
-    int x_padding = (getWindowWidth() - num_x * x_spacing) / 2;
+    //Initialize framebuffer
+    gl::Fbo::Format format;
+    mFbo = gl::Fbo::create(getWindowWidth(), getWindowHeight(), format.depthTexture() );
 
-    int y_spacing = 50;
-    int num_y = getWindowHeight() % y_spacing;
-    int y_padding = (getWindowHeight() - num_y * y_spacing) / 2;
+    //Seed RNG
+    cinder::Rand::randomize();
+    //srand(time(NULL));
+    
+    //Generate agent objects, in this case, Blobs
+    Blob test_blob(randInt(getWindowWidth()), randInt(getWindowHeight()), 1.2, 10, 10, 5, Color(1, 0, 0));
+    triangles.push_back(test_blob);
+}
 
-    for (int i = 0; i < num_x; i++){
-        for (int j = 0; j < num_y; j++){
-            addCircle(i * x_spacing + x_padding, j * y_spacing + y_padding, std::rand() % 10 + 1);
-        }
+//Draw to FBO
+//Call other draw() functions here
+void MainApp::render_to_FBO(){
+    gl::ScopedFramebuffer sfb(mFbo);
+    //gl::clear to clear SFB
+    gl::ScopedViewport svp( ivec2(0), mFbo->getSize());
+
+    gl::color( Color::black());
+    
+    //Call agent draw()
+    for (auto &t : triangles){
+        t.draw();
     }
 }
 
-void MainApp::addCircle(float x, float y, float r){
-    circle newCircle;
-    newCircle.pos = vec2(x, y);
-    newCircle.r = r;
-    circles.push_back(newCircle);
+void MainApp::update(){
+
+    //Update agent info
+    float vx = (getElapsedSeconds() / 2) * cos(10 * getElapsedSeconds());
+    float vy = (getElapsedSeconds() / 2) * sin(10 * getElapsedSeconds());
+    for (auto &t : triangles){
+        t.set_vel(vec2(vx, vy));
+        t.rotate_blob(0.2);
+        t.set_color(Color(randFloat(), randFloat(), randFloat()));
+        t.update();
+    }
+
+    //Update FBO
+    render_to_FBO();
 }
 
+//Draw FBO to screen
 void MainApp::draw(){
-    gl::clear(Color::gray(0));
-    for (auto c : circles){
-        cinder::gl::drawSolidCircle(c.pos, c.r);
-    }
-
-    /*
-    double t = getElapsedSeconds();
-    double scale = 100;
-    double xshift = 300;
-    double yshift = 400;
-    //gl::color(cos(t), sin(t), 0.2*cos(t) + 0.2*sin(t));
-    //gl::drawLine(vec2(scale * cos(t) + xshift, scale * sin(t) + yshift),
-    //            vec2(scale * cos(t+1) + xshift, scale * sin(t+1) + yshift));
-    */
-
-
+    gl::clear(Color::gray(1));
+    mFbo->bindTexture();
+    gl::draw(mFbo->getColorTexture());
+    
 }
 
+//Invoke run App macro
 CINDER_APP( MainApp, RendererGl, prepareSettings )
