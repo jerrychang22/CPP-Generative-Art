@@ -1,18 +1,22 @@
+#include <iostream>
+#include <unistd.h>
+
 #include "cinder/app/App.h"
 #include "cinder/app/RendererGl.h"
 #include "cinder/gl/gl.h"
 #include "cinder/gl/Fbo.h"
+#include "cinder/gl/Context.h"
 #include "cinder/Rand.h"
 #include <glm/glm.hpp>
-#include <time.h>
 
-#include "Blob.h"
+#include "BlobBoid.h"
 
 using namespace ci;
 using namespace ci::app;
 using namespace glm;
 using namespace std;
 
+const int window_len = 900;
 
 //Main, add sub-apps
 class MainApp : public App {
@@ -24,13 +28,13 @@ class MainApp : public App {
         void render_to_FBO();
         
         gl::FboRef      mFbo;
-        vector<Blob>    triangles;
+        BlobBoid        bb;
 };
 
 //No additional settins yet
 //Define window size in future
 void prepareSettings(MainApp::Settings* settings){
-   // settings->setMultiTouchEnabled(false);
+    // settings->setMultiTouchEnabled(false);
 }
 
 //Future
@@ -38,53 +42,48 @@ void prepareSettings(MainApp::Settings* settings){
 //1) choosing art
 //2) user parameters
 void MainApp::setup(){
+    setWindowSize(window_len, window_len);
     //Initialize framebuffer
-    gl::Fbo::Format format;
-    mFbo = gl::Fbo::create(getWindowWidth(), getWindowHeight(), format.depthTexture() );
+    //gl::Fbo::Format format;
+    mFbo = gl::Fbo::create(window_len, window_len);
 
     //Seed RNG
     cinder::Rand::randomize();
     //srand(time(NULL));
     
     //Generate agent objects, in this case, Blobs
-    Blob test_blob(randInt(getWindowWidth()), randInt(getWindowHeight()), 1.2, 10, 10, 5, Color(1, 0, 0));
-    triangles.push_back(test_blob);
+    this->bb = BlobBoid(100, window_len, window_len, 20, 60);
+    cout << "Setup complete" << "\n";
 }
 
 //Draw to FBO
 //Call other draw() functions here
 void MainApp::render_to_FBO(){
     gl::ScopedFramebuffer sfb(mFbo);
-    //gl::clear to clear SFB
-    gl::ScopedViewport svp( ivec2(0), mFbo->getSize());
-
-    gl::color( Color::black());
     
+    //gl::clear to clear SFB
+    gl::clear(Color::white());
+    gl::ScopedViewport svp( ivec2(0), mFbo->getSize());
+    //gl::viewport( mFbo->getBounds() ); 
     //Call agent draw()
-    for (auto &t : triangles){
-        t.draw();
-    }
+    bb.draw();
 }
 
 void MainApp::update(){
 
     //Update agent info
-    float vx = (getElapsedSeconds() / 2) * cos(10 * getElapsedSeconds());
-    float vy = (getElapsedSeconds() / 2) * sin(10 * getElapsedSeconds());
-    for (auto &t : triangles){
-        t.set_vel(vec2(vx, vy));
-        t.rotate_blob(0.2);
-        t.set_color(Color(randFloat(), randFloat(), randFloat()));
-        t.update();
-    }
+    bb.update();
 
     //Update FBO
     render_to_FBO();
+
+    usleep(50000);
 }
 
 //Draw FBO to screen
 void MainApp::draw(){
-    gl::clear(Color::gray(1));
+    gl::clear(Color::white());
+    gl::color(Color::white());
     mFbo->bindTexture();
     gl::draw(mFbo->getColorTexture());
     

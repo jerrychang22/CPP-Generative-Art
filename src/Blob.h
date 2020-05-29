@@ -20,10 +20,13 @@ class Blob {
         float get_size();
         vec2 get_vel();
         ColorT<float> get_color();
+        vector<Blob*> get_nn();
 
         void rotate_blob(float angle);
+        void rotate_blob();
         void set_vel(vec2 vel);
         void set_color(ColorT<float> color);
+        void set_nn(vector<Blob*> nn);
         vector<vec2> get_vertices();
 
         void update();
@@ -36,6 +39,8 @@ class Blob {
         float _size;
         vec2 _vel;
         ColorT<float> _color;
+
+        vector<Blob*> _knn; 
 };
 
 #endif
